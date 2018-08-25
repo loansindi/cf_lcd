@@ -3,7 +3,7 @@ package cf_lcd
 
 import (
 	"encoding/binary"
-	"fmt"
+	"errors"
 	"github.com/tarm/serial"
 	"log"
 )
@@ -46,39 +46,21 @@ func Clear(p *serial.Port) {
 	p.Write([]byte(send))
 }
 
-func WriteLine1(p *serial.Port, message string) {
-	msg := make([]byte, 22)
-	var line2 string
-	if len(message) > 16 {
-		line2 = message[16:]
-		WriteLine2(p, line2)
-		message = message[:16]
-
-	}
-	msg[0] = 0x1F
-	msg[1] = byte(len(message) + 2)
-	msg[2] = 0x00
-	msg[3] = 0x00
-	for i, character := range message {
-		msg[i+4] = byte(character)
-	}
-	c := makecrc(msg[0 : len(message)+4])
-	binary.LittleEndian.PutUint16(msg[len(message)+4:], c)
-	send := msg[0 : len(message)+6]
-	p.Write([]byte(send[0:]))
-	fmt.Println([]byte(send))
-
-}
-
-func WriteLine2(p *serial.Port, message string) {
-	if len(message) > 16 {
-		message = message[:16]
-	}
+func Write(p *serial.Port, row int, col int, message string) (err error) {
 	msg := make([]byte, len(message)+6)
+	if len(message) > 16 {
+		return errors.New("Message too long!")
+	}
+	if row != 0 && row != 1 {
+		return errors.New("Invalid row selection!")
+	}
+	if col > 16 {
+		return errors.New("Invalid column selection!")
+	}
 	msg[0] = 0x1F
 	msg[1] = byte(len(message) + 2)
-	msg[2] = 0x00
-	msg[3] = 0x01
+	msg[2] = byte(col)
+	msg[3] = byte(row)
 	for i, character := range message {
 		msg[i+4] = byte(character)
 	}
@@ -86,6 +68,6 @@ func WriteLine2(p *serial.Port, message string) {
 	binary.LittleEndian.PutUint16(msg[len(message)+4:], c)
 	send := msg[0 : len(message)+6]
 	p.Write([]byte(send[0:]))
-	fmt.Println([]byte(send))
+	return errors.New("nil")
 
 }
