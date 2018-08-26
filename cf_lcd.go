@@ -55,6 +55,9 @@ func Clear(p *serial.Port) {
 	binary.LittleEndian.PutUint16(clear[2:], b)
 	send := clear[0:4]
 	p.Write([]byte(send[0:]))
+	ret := make([]byte, 4)
+	p.Read(ret)
+
 }
 
 func Write(p *serial.Port, row int, col int, message string) (err error) {
@@ -79,5 +82,8 @@ func Write(p *serial.Port, row int, col int, message string) (err error) {
 	binary.LittleEndian.PutUint16(msg[len(message)+4:], c)
 	send := msg[0 : len(message)+6]
 	p.Write([]byte(send[0:]))
+	ret := make([]byte, 4)
+	p.Read(ret)
 	return nil
+
 }
