@@ -45,6 +45,8 @@ func Backlight(p *serial.Port, b int) {
 	binary.LittleEndian.PutUint16(bright[3:], crc)
 	send := bright[0:5]
 	p.Write([]byte(send[0:]))
+	ret := make([]byte, 4)
+	p.Read(ret)
 }
 
 func Clear(p *serial.Port) {
@@ -86,4 +88,30 @@ func Write(p *serial.Port, row int, col int, message string) (err error) {
 	p.Read(ret)
 	return nil
 
+}
+
+func KeyReporting(p *serial.Port, mask []byte) (err error) {
+	msg := make([]byte, 6)
+	msg[0] = 0x17
+	msg[1] = 0x02
+	msg[2] = mask[0]
+	msg[3] = mask[1]
+	c := makecrc(msg[0:4])
+	binary.LittleEndian.PutUint16(msg[4:], c)
+	p.Write([]byte(msg[0:]))
+	ret := make([]byte, 4)
+	p.Read(ret)
+	return nil
+}
+
+func GetKeys(p *serial.Port) []byte {
+	msg := make([]byte, 4)
+	msg[0] = 0x18
+	msg[1] = 0x00
+	c := makecrc(msg[:2])
+	binary.LittleEndian.PutUint16(msg[2:], c)
+	p.Write([]byte(msg[0:]))
+	ret := make([]byte, 7)
+	p.Read(ret)
+	return ret
 }
