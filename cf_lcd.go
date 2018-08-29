@@ -27,16 +27,31 @@ func makecrc(ptr []byte) uint16 {
 	return ^crc
 }
 
-func emptyBuffer(p *serial.Port) {
-
-	buf := make([]byte, 4)
+func handleBuffer(p *serial.Port) ([]byte, error) {
+	buf := make([]byte, 16)
 	_, err := p.Read(buf)
 	if err != nil {
+
 		log.Fatal(err)
 	}
+	for index := range buf {
+		if buf[index] == 87 || buf[index] == 88 {
+			length := buf[1]
+			packet := make([]byte, length+2)
+			packet = buf[2 : len(buf)-2]
+			if err != nil {
+				log.Fatal("Error reading packet")
+			}
+			return packet, err
+
+		} else {
+			return nil, err
+		}
+	}
+	return nil, err
 }
 
-func Backlight(p *serial.Port, b int) {
+func Backlight(p *serial.Port, b int) ([]byte, error) {
 	bright := make([]byte, 5)
 	bright[0] = 0x0E
 	bright[1] = 0x01
@@ -45,11 +60,12 @@ func Backlight(p *serial.Port, b int) {
 	binary.LittleEndian.PutUint16(bright[3:], crc)
 	send := bright[0:5]
 	p.Write([]byte(send[0:]))
-	ret := make([]byte, 4)
-	p.Read(ret)
+
+	packet, err := handleBuffer(p)
+	return packet, err
 }
 
-func Clear(p *serial.Port) {
+func Clear(p *serial.Port) ([]byte, error) {
 	clear := make([]byte, 4)
 	clear[0] = 0x06
 	clear[1] = 0x00
@@ -57,21 +73,21 @@ func Clear(p *serial.Port) {
 	binary.LittleEndian.PutUint16(clear[2:], b)
 	send := clear[0:4]
 	p.Write([]byte(send[0:]))
-	ret := make([]byte, 4)
-	p.Read(ret)
+	packet, err := handleBuffer(p)
+	return packet, err
 
 }
 
-func Write(p *serial.Port, row int, col int, message string) (err error) {
+func Write(p *serial.Port, row int, col int, message string) (packet []byte, err error) {
 	msg := make([]byte, len(message)+6)
 	if len(message) > 16 {
-		return errors.New("Message too long!")
+		return nil, errors.New("Message too long!")
 	}
 	if row != 0 && row != 1 {
-		return errors.New("Invalid row selection!")
+		return nil, errors.New("Invalid row selection!")
 	}
 	if col > 16 {
-		return errors.New("Invalid column selection!")
+		return nil, errors.New("Invalid column selection!")
 	}
 	msg[0] = 0x1F
 	msg[1] = byte(len(message) + 2)
@@ -84,13 +100,12 @@ func Write(p *serial.Port, row int, col int, message string) (err error) {
 	binary.LittleEndian.PutUint16(msg[len(message)+4:], c)
 	send := msg[0 : len(message)+6]
 	p.Write([]byte(send[0:]))
-	ret := make([]byte, 4)
-	p.Read(ret)
-	return nil
+	packet, err = handleBuffer(p)
+	return packet, err
 
 }
 
-func KeyReporting(p *serial.Port, mask []byte) (err error) {
+func KeyReporting(p *serial.Port, mask []byte) (packet []byte, err error) {
 	msg := make([]byte, 6)
 	msg[0] = 0x17
 	msg[1] = 0x02
@@ -99,19 +114,21 @@ func KeyReporting(p *serial.Port, mask []byte) (err error) {
 	c := makecrc(msg[0:4])
 	binary.LittleEndian.PutUint16(msg[4:], c)
 	p.Write([]byte(msg[0:]))
-	ret := make([]byte, 4)
-	p.Read(ret)
-	return nil
+	packet, err = handleBuffer(p)
+	return packet, err
 }
 
-func GetKeys(p *serial.Port) []byte {
+func GetKeys(p *serial.Port) ([]byte, error) {
 	msg := make([]byte, 4)
 	msg[0] = 0x18
 	msg[1] = 0x00
 	c := makecrc(msg[:2])
 	binary.LittleEndian.PutUint16(msg[2:], c)
 	p.Write([]byte(msg[0:]))
-	ret := make([]byte, 7)
-	p.Read(ret)
-	return ret
+	packet, err := handleBuffer(p)
+	return packet, err
+}
+
+func Flush(p *serial.Port) {
+	p.Flush()
 }
