@@ -78,6 +78,41 @@ func Clear(p *serial.Port) ([]byte, error) {
 
 }
 
+func CursorStyle(p *serial.Port, b int) ([]byte, error) {
+	/* Cursor Styles:
+	* 0 = No Cursor
+	* 1 = Blinking block cursor
+	* 2 = Static underscore cursor
+	* 3 = Blinking underscore cursor
+	 */
+	style := make([]byte, 5)
+	style[0] = 0x0C
+	style[1] = 0x01
+	style[2] = byte(b)
+	crc := makecrc(style[:3])
+	binary.LittleEndian.PutUint16(style[3:], crc)
+	send := style[0:5]
+	p.Write([]byte(send[0:]))
+
+	packet, err := handleBuffer(p)
+	return packet, err
+}
+
+func CursorPosition(p *serial.Port, row int, col int) ([]byte, error) {
+	position := make([]byte, 6)
+	position[0] = 0x0B
+	position[1] = 0x02
+	position[2] = byte(col)
+	position[3] = byte(row)
+	crc := makecrc(position[:4])
+	binary.LittleEndian.PutUint16(position[4:], crc)
+	send := position[0:6]
+	p.Write([]byte(send[0:]))
+
+	packet, err := handleBuffer(p)
+	return packet, err
+}
+
 func Write(p *serial.Port, row int, col int, message string) (packet []byte, err error) {
 	msg := make([]byte, len(message)+6)
 	if len(message) > 16 {
